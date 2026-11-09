@@ -20,7 +20,7 @@ import customtkinter as ctk
 import pythonping
 
 from firewall_engine import FirewallManager, is_admin
-from game_profiles import GAME_PROFILES, detect_game_executable
+from game_profiles import GAME_PROFILES, get_all_game_executables
 import sync_ip_ranges
 
 def get_resource_path(relative_path: str) -> str:
@@ -296,14 +296,15 @@ class UniversalServerSelectorApp(ctk.CTk):
         self.status_bar.pack(fill="x", padx=20, pady=(6, 10))
 
     def _on_game_change(self, game_name: str):
-        exe = detect_game_executable(game_name)
-        if exe:
-            self.detected_exe.set(f"✓ Detected: {os.path.basename(exe)}")
+        exes = get_all_game_executables(game_name)
+        if exes:
+            names = [os.path.basename(os.path.dirname(os.path.dirname(e))) or os.path.basename(e) for e in exes]
+            self.detected_exe.set(f"✓ Bound to {len(exes)} executable(s): {', '.join(names)}")
         else:
-            if game_name == "All Games (Global Firewall)":
+            if game_name == "All Games (Global Mode)":
                 self.detected_exe.set("● Applies to all outbound traffic")
             else:
-                self.detected_exe.set("▲ Executable not found in default paths (system-wide rule will apply)")
+                self.detected_exe.set("▲ Not found in standard paths (system-wide rule will apply)")
 
     def _check_admin_privileges(self):
         if is_admin():
@@ -366,8 +367,7 @@ class UniversalServerSelectorApp(ctk.CTk):
             return
 
         game = self.selected_game.get()
-        exe = detect_game_executable(game)
-        app_paths = [exe] if exe else []
+        app_paths = get_all_game_executables(game)
 
         self.status_var.set(f"Applying rules for {game} to isolate {target}...")
 
@@ -407,8 +407,7 @@ class UniversalServerSelectorApp(ctk.CTk):
             return
 
         game = self.selected_game.get()
-        exe = detect_game_executable(game)
-        app_paths = [exe] if exe else []
+        app_paths = get_all_game_executables(game)
 
         self.status_var.set(f"Blocking Middle East servers for {game}...")
         def run_block():
