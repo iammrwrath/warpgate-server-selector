@@ -1,115 +1,127 @@
-
-
-# MINA Overwatch 2 Server Selector
-[![Overwatch-Server-Selector](https://github.com/mr-gh-actions/Overwatch-Server-Selector/actions/workflows/main.yaml/badge.svg)](https://github.com/foryVERX/Overwatch-Server-Selector/actions/workflows/main.yaml)
+# <p align="center"><img src="assets/warpgate_logo.png" width="180" alt="WARPGATE Logo"><br><b>WARPGATE</b></p>
 <p align="center">
-	<img src="ReadMeFiles/Logo.png" alt="Logo of the application" height="200" width="200">
+  <b>Next-Generation Ultra-Low Latency PvP Server Selector & Region Lock</b><br>
+  <i>Take complete control of your matchmaking routing across competitive shooters.</i>
 </p>
-A simple application that allows you to select the servers you want to play on!
 
-## General Information
-### Setup Download
-- Download link in the Assets of [the latest release](https://github.com/foryVERX/Overwatch-Server-Selector/releases/latest).
+<p align="center">
+  <img src="https://img.shields.io/badge/Release-v6.5-orange.svg" alt="Release">
+  <img src="https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-blue.svg" alt="Platform">
+  <img src="https://img.shields.io/badge/Protocol-UDP%20Matchmaking%20Safe-brightgreen.svg" alt="Protocol">
+  <img src="https://img.shields.io/badge/Format-Portable%20Single%20EXE-blueviolet.svg" alt="Format">
+  <img src="https://img.shields.io/badge/Anti--Cheat-100%25%20Safe%20(Firewall%20Only)-success.svg" alt="Safety">
+</p>
 
-### Portable Download
-- To download the bleeding edge build of this application, built automatically by GitHub, head over to [Actions](https://github.com/foryVERX/Overwatch-Server-Selector/actions/), select the latest build with a green check mark, scroll down to the artifacts section. There is your download.
+---
 
-### Converting python files to exe (optional)
-- If you want to convert the files to exe yourself without using my provided download, see the [Build section](#build) for a guide to do so. Requires you to have some previous experience with Python. 
+## ⚡ What is WARPGATE?
 
-## Introduction
+**WARPGATE** is a modern, high-performance network routing tool designed for competitive PC gamers who demand strict matchmaking latency. 
 
-The application simply works by blocking Overwatch 2 IP addresses using wf.msc (Firewall with Advance Security). To do this, the application needs to run as administrator. It uses Component Object Model (COM) API to directly add/remove the blocking rules. **The application does not read or write on game files or modify the network traffic of the game!**
+Instead of letting game matchmaking algorithms randomly throw you onto distant or unstable server clusters with high ping and packet loss, **WARPGATE** leverages native **Windows Advanced Firewall rules** to filter out unwanted datacenters before the matchmaker can probe them.
 
-As long as you have a standard firewall (Windows Firewall) and antivirus (Microsoft Defender Antivirus), no further action to make the application work is necessary.
+### Supported Games
+* 🎯 **Overwatch 2** (`Overwatch.exe`)
+* 💥 **Battlefield 2042 & Battlefield 6** (`BF2042.exe` / `BF6.exe`)
+* ⚡ **Apex Legends** (`r5apex.exe`)
+* 🛡️ **Marvel Rivals** (`Marvel-Win64-Shipping.exe`)
+* 🌐 **All Multiplayer Games** (System-wide global mode)
 
-There are predefined buttons to block the server regions AU, EU, ME, NA-West, and NA-East. You can also use the "Custom" button to selectively block regions/servers.
+---
 
-The Overwatch 2 matchmaker will test to find the best server with the best ping. When you block a server in the firewall, the specified server will be inaccessible and get ranked lowest amongst the server. The server with the lowest ping will be selected and used to find you a game.
+## 🚀 Key Features
 
-The block ME option can help in a situation where some times the matchmaker puts you in a bad server, for example if your best is EU, it gets you to ME one game out of 100.
+* **🛡️ 100% Anti-Cheat Safe (Warden / Ricochet / EasyAntiCheat)**  
+  Zero memory modification, zero DLL injection, zero game file tampering. WARPGATE operates purely on the OS network firewall level (`netsh advfirewall` & Windows Filtering Platform).
+* **🔒 Smart UDP Game Isolation**  
+  Unlike legacy tools that cause *"Time out communicating with Battle.net services"* or EA App connection errors by blocking all traffic, WARPGATE blocks **UDP match routing only**, leaving critical TCP authentication, login tokens, patch downloaders, and Discord untouched.
+* **⚡ Live Latency Monitor**  
+  Real-time asynchronous ping telemetry to Blizzard, AWS, and Google Cloud datacenters with color-coded status badges:
+  - 🟢 Low Ping (<80ms)
+  - 🟡 Moderate Ping (80–160ms)
+  - 🔴 High Ping (>160ms)
+* **🌐 Dynamic Cloud CIDR Synchronization**  
+  Automated live updates syncing directly with Google Cloud and AWS IP blocks to ensure your server blocklists are never obsolete after game patches.
+* **📦 Portable Single-Executable**  
+  No Python, no installers, no DLL configuration needed. Runs standalone straight from your desktop or USB drive with automatic UAC administrator privilege elevation.
 
-EU players can, with this application, now play on NA servers. The problem is that even if you change the Battle.net region to America, it gives you an European Overwatch 2 server. The server selector enables you pick the region to play on whether its NA East or NA West. It then blocks the connection to all other regions than NA West/East.
+---
 
-NA players are also able to specify whether they prefer to play on NA East or NA West.
+## 🗺️ Supported Global Datacenters
 
-# MINA OVERWATCH 2 SERVER SELECTOR V5.0
+| Region Identifier | City / Location | Cloud / Hosting Provider |
+| :--- | :--- | :--- |
+| **ORD1** | Chicago, IL, USA | Blizzard Core / Google Cloud (`us-central1`) |
+| **LAX1 / GUW2** | Los Angeles, CA / Oregon | Blizzard Core / AWS / GCP (`us-west`) |
+| **GUE4** | Ashburn, VA, USA | AWS (`us-east-1`) / Google Cloud |
+| **AMS1 / GEN1** | Amsterdam / Finland / Frankfurt | European Core / GCP (`europe-west4`, `europe-north1`) |
+| **MES1 / GMEC** | Bahrain / Qatar / Saudi Arabia | AWS Middle East / Google Cloud (`me-central`) |
+| **GTK1** | Tokyo, Japan | AWS (`ap-northeast-1`) / Google Cloud |
+| **ICN1 / GAN3** | Seoul, South Korea | Blizzard Core / AWS / GCP (`asia-northeast3`) |
+| **GSG1** | Singapore | AWS (`ap-southeast-1`) / Google Cloud |
+| **TPE1** | Taipei, Taiwan | Blizzard Core / GCP (`asia-east1`) |
+| **SYD2** | Sydney, Australia | AWS Oceania (`ap-southeast-2`) |
+| **GBR1** | São Paulo, Brazil | AWS South America (`sa-east-1`) |
 
-![Screenshot of the application](ReadMeFiles/ServerSelectorScreenshot.PNG)
+---
 
-* Supports
-	* Play on EU
-	* Play on NA West
-	* Play on NA East
-	* Play on Australia
-* Updated servers to work on Overwatch 2
-* Custom config option, alows you to create your cutom settings.
-* An option that only affect overwatch when blocked
-*  Added donation button for support ;)
+## 💻 Quick Start Guide
 
-Please reach out if you want to help or have a question, discord: VERX#2227
+### Option 1: Run the Precompiled Standalone Executable (Recommended)
+1. Head to the **[Releases](https://github.com/iammrwrath/warpgate-server-selector/releases)** or your local `dist/` directory.
+2. Launch **`PvP-Server-Selector.exe`** (accept the Windows UAC Administrator prompt).
+3. Select your target game from the dropdown.
+4. Select your preferred region tile to inspect live ping latencies.
+5. Click **"🔒 Lock Selected Region"**.
+6. Launch your game and queue into competitive matches!
 
-**The application has to be ran as administrator to be able to add or remove firewall rules.**
+### Option 2: Running from Source
+```bash
+# Clone the repository
+git clone https://github.com/iammrwrath/warpgate-server-selector.git
+cd warpgate-server-selector
 
-## Requirements
-### Video Guide
-[HOW TO USE MINA OVERWATCH 2 SERVER](https://youtu.be/ySLK0wW3lDc)
+# Install dependencies
+python -m pip install -r requirements.txt
 
-Note: when applying options take care about this
+# Run WARPGATE (Run terminal as Administrator)
+python modern_app.py
+```
 
-If you apply options while the game is running:
+### Option 3: Building the Standalone Executable
+```bash
+python -m pip install pyinstaller
+python -m PyInstaller --clean build_portable.spec
+```
+The output executable will be generated at `dist/PvP-Server-Selector.exe`.
 
-	FROM NO OPTION CHOSEN TO PLAY ON OPTION 	--->  GAME RESTART REQUIRED
-	FROM PLAY ON OPTION TO UNBLOCK ALL	 	--->  NO RESTART REQUIRED
+---
 
-## Download
-[DOWNLOAD MINA OVERWATCH 2 SERVER SELECTOR](https://github.com/foryVERX/Overwatch-Server-Selector/releases)
+## ❓ Frequently Asked Questions
 
-# Build 
+<details>
+<summary><b>Can I get banned for using WARPGATE?</b></summary>
+No. WARPGATE does not touch the game client, memory, or storage. It functions identically to configuring outbound packet rules in Windows Defender Firewall or setting QoS rules in your router.
+</details>
 
-## Pyinstaller
-To manually build the application
-1. Install latest Python
-2. `pip install pyinstaller`
-3. To build the exe, simply run this in the repository :`pyinstaller Overwatch-Server-Selector.exe.spec`
-4. The exe is now located in `dist\Overwatch-Server-Selector.exe`
+<details>
+<summary><b>Will this kick me from Battle.net or the EA App?</b></summary>
+No. WARPGATE specifically implements smart UDP filtering. Platform authentication, license verification, and text/voice chat operate over TCP (ports 80, 443, 1119, 3724) and remain untouched.
+</details>
 
-## Auto py to exe users
+<details>
+<summary><b>How do I check which server I am currently on in Overwatch 2?</b></summary>
+In an active match or in the Practice Range, press <code>Ctrl + Shift + N</code> to toggle the NetGraph. Look at the top-left corner next to the IP address to see the four-letter server identifier (e.g. <code>[ORD1]</code>).
+</details>
 
-If you want to convert py to exe follow the guide.
+<details>
+<summary><b>How do I reset all firewall rules?</b></summary>
+Simply open the tool and click <b>"🔓 Reset / Unblock All"</b>. All custom server routing rules will be wiped instantly.
+</details>
 
-note you need to know what are you doing if you are here 😉.
+---
 
-1. Install latest Python
-2. `pip install auto-py-to-exe`
-3. In terminal `auto-py-to-exe`.
-4. Script Location use main.py where ever you locate it.
-5. Choose onefile.
-6. Choose Window based(hide console)
-7. Icon choose icon provided in .img folder.
-8. Additional File (very important), to include `pic2str.py` which have all the images used in byte format.
-9. In advance make sure you do the following:
-	*   `-name Overwatch Server Selector`
-	* `--uac admin: Enable`
-11. CONVERT .PY TO .EXE
-12. The exe is now located in `output\Overwatch Server Selector.exe`
-
-# Manually Install IP List
-It should be odd when this happens, but this is usefull when having the following issues such as.
-
-1. Not able to update the app.
-2. IP List is not installing.
-3. It says working on it and stuck.
-4. Shows no internet connection while you have internet.
-
-
-### How to
-1. [Download the project from this link](https://github.com/foryVERX/Overwatch-Server-Selector/archive/refs/heads/main.zip)
-2. Unzip and copy the content of ip_list folder.
-3. Open the app installed at your system navigate to OPTIONS.
-4. Press on open config folder.
-5. Paste content of ip_list.
-6. Restart the app.
-
-Note. For each ip list update you have to update manually if it doesn't work again.
-
+## 📜 License & Acknowledgments
+* **Author / Maintainer**: [iammrwrath](https://github.com/iammrwrath)
+* Originally based on the foundational research of `foryVERX/Overwatch-Server-Selector`.
+* Licensed under the MIT License.
