@@ -101,25 +101,25 @@ if "beta" in __version__:
     customConfig_path = localappdata_path + '\\customConfig.txt'
     message_path = localappdata_path + '\\messageBeta.txt'
     ip_version_url = \
-        'https://raw.githubusercontent.com/foryVERX/Overwatch-Server-Selector/main/ip_lists_betaVersions/IP_version.txt'
+        'https://raw.githubusercontent.com/iammrwrath/overwatch-server-selector/main/ip_lists_betaVersions/IP_version.txt'
     appVersion_url = \
-        'https://raw.githubusercontent.com/foryVERX/Overwatch-Server-Selector/main/__version__/__latestversion__.txt'
+        'https://raw.githubusercontent.com/iammrwrath/overwatch-server-selector/main/__version__/__latestversion__.txt'
     urlContainer_url = \
-        "https://raw.githubusercontent.com/foryVERX/Overwatch-Server-Selector/main/ip_lists_betaVersions/urlsContainer.txt"
+        "https://raw.githubusercontent.com/iammrwrath/overwatch-server-selector/main/ip_lists_betaVersions/urlsContainer.txt"
     msg_url = \
-        "https://raw.githubusercontent.com/foryVERX/Overwatch-Server-Selector/main/CommunicateToUser/messageBeta.txt"
+        "https://raw.githubusercontent.com/iammrwrath/overwatch-server-selector/main/CommunicateToUser/messageBeta.txt"
 else:
     ip_version_path = localappdata_path + '\\IP_version.txt'
     customConfig_path = localappdata_path + '\\customConfig.txt'
     message_path = localappdata_path + '\\message.txt'
     ip_version_url = \
-        'https://raw.githubusercontent.com/foryVERX/Overwatch-Server-Selector/main/ip_lists/IP_version.txt'
+        'https://raw.githubusercontent.com/iammrwrath/overwatch-server-selector/main/ip_lists/IP_version.txt'
     appVersion_url = \
-        'https://raw.githubusercontent.com/foryVERX/Overwatch-Server-Selector/main/__version__/__latestversion__.txt'
+        'https://raw.githubusercontent.com/iammrwrath/overwatch-server-selector/main/__version__/__latestversion__.txt'
     urlContainer_url = \
-        "https://raw.githubusercontent.com/foryVERX/Overwatch-Server-Selector/main/ip_lists/urlsContainer.txt"
+        "https://raw.githubusercontent.com/iammrwrath/overwatch-server-selector/main/ip_lists/urlsContainer.txt"
     msg_url = \
-        "https://raw.githubusercontent.com/foryVERX/Overwatch-Server-Selector/main/CommunicateToUser/message.txt"
+        "https://raw.githubusercontent.com/iammrwrath/overwatch-server-selector/main/CommunicateToUser/message.txt"
 
 DEFAULT_BLOCK_NAME = "_Overwatch Block"
 DEFAULT_GROUPING_NAME = "_MINA Overwatch 2-Server-Selector"
