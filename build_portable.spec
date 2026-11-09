@@ -7,6 +7,8 @@ ctk_path = os.path.dirname(customtkinter.__file__)
 
 added_files = [
     ('ip_lists', 'ip_lists'),
+    ('assets/warpgate.ico', 'assets'),
+    ('assets/warpgate_logo.png', 'assets'),
     ('LOGO_SMALL_APPLICATION.ico', '.'),
     (ctk_path, 'customtkinter')
 ]
@@ -43,7 +45,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='WARPGATE-Universal',
+    name='WARPGATE-Universal-v2',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
