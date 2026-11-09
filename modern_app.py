@@ -23,6 +23,7 @@ import pythonping
 from firewall_engine import FirewallManager, is_admin
 from game_profiles import GAME_PROFILES, get_all_game_executables, get_game_regions
 import sync_ip_ranges
+from updater import UpdateManager, CURRENT_VERSION
 
 def get_resource_path(relative_path: str) -> str:
     """Get absolute path to resource, works for dev and for PyInstaller bundle."""
@@ -51,9 +52,12 @@ class UniversalServerSelectorApp(ctk.CTk):
         self.ping_labels: Dict[str, ctk.CTkLabel] = {}
         self.status_var = ctk.StringVar(value="Status: Ready")
 
+        self.update_info = None  # Holds (tag, url, size, notes) if an update is available
+
         self._create_layout()
         self._check_admin_privileges()
         self._on_game_change(self.selected_game.get())
+        self._check_updates_background()
 
     def _create_layout(self):
         # Header banner
@@ -75,6 +79,17 @@ class UniversalServerSelectorApp(ctk.CTk):
             text_color="#888888"
         )
         self.admin_lbl.pack(side="right", padx=15)
+
+        # Update Banner / Button (Hidden by default, shown when update found)
+        self.update_btn = ctk.CTkButton(
+            header_frame,
+            text="🚀 Update Available",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            fg_color="#1f6feb",
+            hover_color="#388bfd",
+            height=28,
+            command=self._show_update_modal
+        )
 
         # Game Selection Bar
         game_bar = ctk.CTkFrame(self, corner_radius=8, fg_color="#21252b")
@@ -193,6 +208,19 @@ class UniversalServerSelectorApp(ctk.CTk):
             command=self.sync_ip_ranges_async
         )
         self.sync_btn.pack(fill="x", padx=15, pady=8)
+
+        # Check for App Updates Button
+        self.check_update_btn = ctk.CTkButton(
+            actions_frame,
+            text=f"📦 Check for App Updates ({CURRENT_VERSION})",
+            fg_color="#21262d",
+            hover_color="#30363d",
+            border_width=1,
+            border_color="#484f58",
+            font=ctk.CTkFont(size=11),
+            command=self.manual_check_updates
+        )
+        self.check_update_btn.pack(fill="x", padx=15, pady=4)
 
         # Status Bar at bottom
         self.status_bar = ctk.CTkLabel(
@@ -433,6 +461,128 @@ class UniversalServerSelectorApp(ctk.CTk):
             FirewallManager.delete_all_selector_rules()
             self.after(0, lambda: self.status_var.set("All server blocks removed. Normal matchmaking restored."))
         threading.Thread(target=run_unlock, daemon=True).start()
+
+    # ==================== AUTO-UPDATER LOGIC ====================
+    def _check_updates_background(self):
+        """Silently checks for new versions in the background on launch."""
+        def _bg():
+            avail, tag, url, size, notes = UpdateManager.check_for_updates()
+            if avail and url:
+                self.update_info = (tag, url, size, notes)
+                self.after(0, self._surface_update_notification)
+        threading.Thread(target=_bg, daemon=True).start()
+
+    def manual_check_updates(self):
+        """User clicked 'Check for App Updates'."""
+        self.status_var.set(f"Checking for updates against GitHub...")
+        def _check():
+            avail, tag, url, size, notes = UpdateManager.check_for_updates()
+            if avail and url:
+                self.update_info = (tag, url, size, notes)
+                self.after(0, lambda: [
+                    self._surface_update_notification(),
+                    self.status_var.set(f"New update found: {tag}! Click 'Update Available' to install.")
+                ])
+            else:
+                self.after(0, lambda: self.status_var.set(f"WARPGATE is up to date! Current version: {CURRENT_VERSION}."))
+        threading.Thread(target=_check, daemon=True).start()
+
+    def _surface_update_notification(self):
+        """Displays the glowing update button in the header bar."""
+        if not self.update_info:
+            return
+        tag = self.update_info[0]
+        self.update_btn.configure(text=f"🚀 Install {tag}")
+        self.update_btn.pack(side="right", padx=(0, 10))
+
+    def _show_update_modal(self):
+        """Opens an in-app modal dialog to download and apply the update."""
+        if not self.update_info:
+            return
+
+        tag, url, size, notes = self.update_info
+        modal = ctk.CTkToplevel(self)
+        modal.title(f"WARPGATE Update: {tag}")
+        modal.geometry("480x320")
+        modal.resizable(False, False)
+        modal.attributes("-topmost", True)
+        modal.grab_set()
+
+        mb_size = size / (1024 * 1024) if size else 0
+
+        lbl_title = ctk.CTkLabel(
+            modal,
+            text=f"Update Available: {tag}",
+            font=ctk.CTkFont(size=16, weight="bold"),
+            text_color="#f99f1b"
+        )
+        lbl_title.pack(pady=(20, 6))
+
+        lbl_desc = ctk.CTkLabel(
+            modal,
+            text=f"A new version of WARPGATE ({tag}) is ready to install.\nDownload size: ~{mb_size:.1f} MB\n\nClick 'Download & Restart' to update automatically.",
+            font=ctk.CTkFont(size=12),
+            text_color="#cccccc",
+            justify="center"
+        )
+        lbl_desc.pack(padx=20, pady=8)
+
+        progress_bar = ctk.CTkProgressBar(modal, width=380)
+        progress_bar.set(0)
+        progress_bar.pack(pady=12)
+
+        lbl_progress = ctk.CTkLabel(modal, text="Ready", font=ctk.CTkFont(size=11), text_color="#888888")
+        lbl_progress.pack(pady=(0, 12))
+
+        btn_frame = ctk.CTkFrame(modal, fg_color="transparent")
+        btn_frame.pack(fill="x", padx=20, pady=(0, 15))
+
+        btn_cancel = ctk.CTkButton(
+            btn_frame,
+            text="Later",
+            fg_color="#30363d",
+            hover_color="#484f58",
+            width=100,
+            command=modal.destroy
+        )
+        btn_cancel.pack(side="left", padx=10)
+
+        btn_install = ctk.CTkButton(
+            btn_frame,
+            text="⚡ Download & Restart",
+            fg_color="#2ea043",
+            hover_color="#3fb950",
+            font=ctk.CTkFont(size=12, weight="bold")
+        )
+        btn_install.pack(side="right", padx=10)
+
+        def _do_install():
+            btn_install.configure(state="disabled")
+            btn_cancel.configure(state="disabled")
+            
+            def on_progress(pct: float, text: str):
+                modal.after(0, lambda: [
+                    progress_bar.set(pct),
+                    lbl_progress.configure(text=text)
+                ])
+
+            def on_complete(success: bool, msg: str):
+                if success:
+                    modal.after(0, lambda: [
+                        lbl_progress.configure(text="Update ready! Launching..."),
+                        os.startfile(msg) if hasattr(os, 'startfile') else None,
+                        self.destroy()
+                    ])
+                else:
+                    modal.after(0, lambda: [
+                        btn_install.configure(state="normal"),
+                        btn_cancel.configure(state="normal"),
+                        lbl_progress.configure(text=f"Error: {msg}", text_color="#f85149")
+                    ])
+
+            UpdateManager.download_and_install_update(url, size, on_progress, on_complete)
+
+        btn_install.configure(command=_do_install)
 
 if __name__ == "__main__":
     app = UniversalServerSelectorApp()
