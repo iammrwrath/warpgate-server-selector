@@ -335,8 +335,20 @@ class UniversalServerSelectorApp(ctk.CTk):
             base_dir = get_resource_path('ip_lists')
             ips_to_block = []
             
+            # Smart exemption map: For Overwatch 2 in North America, Blizzard's matchmaker
+            # uses ORD1 (Central) and GUE4 (East) concurrently for matchmaking signaling, relays,
+            # and practice range instances. If NA Central or NA East is locked, keep the adjacent
+            # NA local region unblocked to prevent "Failed to connect to server" handshake timeouts,
+            # while blocking all transatlantic / foreign datacenters (Europe, Middle East, Asia, Oceania, South America).
+            exempt_regions = {target}
+            if game == "Overwatch 2":
+                if "NA Central" in target:
+                    exempt_regions.add("NA East (GUE4 / Virginia)")
+                elif "NA East" in target:
+                    exempt_regions.add("NA Central (ORD1 / Chicago)")
+
             for name, meta in regions.items():
-                if name == target:
+                if name in exempt_regions:
                     continue
                 file_rel = meta.get("file", "")
                 file_path = os.path.join(base_dir, file_rel)

@@ -45,7 +45,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='WARPGATE-Universal-v2',
+    name='WARPGATE-v3',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
