@@ -20,6 +20,14 @@ import pythonping
 from firewall_engine import FirewallManager, is_admin
 import sync_ip_ranges
 
+def get_resource_path(relative_path: str) -> str:
+    """Get absolute path to resource, works for dev and for PyInstaller bundle."""
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(base_path, relative_path)
+
 # Setup Logging
 APP_DATA_DIR = os.path.join(os.getenv('APPDATA', '.'), 'OverwatchServerSelectorV6')
 os.makedirs(APP_DATA_DIR, exist_ok=True)
@@ -298,7 +306,8 @@ class OverwatchServerSelectorApp(ctk.CTk):
         self.status_var.set("Synchronizing latest datacenter CIDR blocks...")
         def run_sync():
             try:
-                sync_ip_ranges.sync_all(os.path.join(os.path.dirname(__file__), 'ip_lists'))
+                target_dir = get_resource_path('ip_lists')
+                sync_ip_ranges.sync_all(target_dir)
                 self.after(0, lambda: self.status_var.set("Datacenter IP lists up to date."))
             except Exception as e:
                 self.after(0, lambda: self.status_var.set(f"Sync error: {e}"))
@@ -321,7 +330,7 @@ class OverwatchServerSelectorApp(ctk.CTk):
             FirewallManager.delete_all_selector_rules()
             
             # Step 2: Combine IP ranges of all OTHER regions to block them
-            base_dir = os.path.join(os.path.dirname(__file__), 'ip_lists')
+            base_dir = get_resource_path('ip_lists')
             ips_to_block = []
             
             for name, meta in REGIONS.items():
@@ -358,7 +367,7 @@ class OverwatchServerSelectorApp(ctk.CTk):
         self.status_var.set("Blocking Middle East servers...")
         def run_block():
             FirewallManager.delete_all_selector_rules()
-            base_dir = os.path.join(os.path.dirname(__file__), 'ip_lists')
+            base_dir = get_resource_path('ip_lists')
             file_path = os.path.join(base_dir, REGIONS["Middle East (MES1 / GMEC)"]["file"])
             
             ips = []
