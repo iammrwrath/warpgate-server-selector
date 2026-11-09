@@ -123,13 +123,13 @@ GAME_CONFIGS = {
         "regions": {
             "US East (Ashburn / Virginia)": {
                 "tag": "US_EAST",
-                "ping_host": "109.200.215.1",
+                "ping_host": "162.244.54.53",
                 "file": "games/battlefield/BF_US_East.txt",
                 "desc": "Virginia / Ashburn (i3D.net + AWS East)"
             },
             "US West (San Jose / Los Angeles)": {
                 "tag": "US_WEST",
-                "ping_host": "109.200.218.1",
+                "ping_host": "162.244.52.53",
                 "file": "games/battlefield/BF_US_West.txt",
                 "desc": "California / Oregon (i3D.net Bare Metal)"
             },
@@ -141,19 +141,19 @@ GAME_CONFIGS = {
             },
             "Asia (Tokyo / Japan)": {
                 "tag": "ASIA_TOKYO",
-                "ping_host": "213.179.200.1",
+                "ping_host": "103.194.166.85",
                 "file": "games/battlefield/BF_Asia_Tokyo.txt",
                 "desc": "Tokyo Datacenter (i3D Asia-East)"
             },
             "Asia (Singapore)": {
                 "tag": "ASIA_SINGAPORE",
-                "ping_host": "213.179.192.1",
+                "ping_host": "213.179.200.53",
                 "file": "games/battlefield/BF_Asia_Singapore.txt",
                 "desc": "Singapore Datacenter (i3D SE-Asia)"
             },
             "Oceania (Sydney / Australia)": {
                 "tag": "OCEANIA_SYDNEY",
-                "ping_host": "203.132.17.1",
+                "ping_host": "109.200.215.1",
                 "file": "games/battlefield/BF_Oceania_Sydney.txt",
                 "desc": "Sydney, Australia (i3D Oceania)"
             },
