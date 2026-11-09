@@ -43,7 +43,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='WARPGATE-Server-Selector',
+    name='WARPGATE',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

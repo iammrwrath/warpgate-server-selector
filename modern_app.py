@@ -1,15 +1,16 @@
 """
 Modern Multi-Game Server Selector v6.5 (Portable Edition)
 Supports:
-- Overwatch 2
-- Battlefield 2042 / Battlefield 6
-- Apex Legends
-- Marvel Rivals
+- Overwatch 2 (Blizzard AS57976 + Google Cloud / AWS)
+- Battlefield 2042 / Battlefield 6 (EA / i3D.net AS49544 + AWS)
+- Apex Legends (Respawn / EA AWS + GCP)
+- Marvel Rivals (NetEase / AWS GameLift)
 - System-Wide Global Game Matchmaking Block
 
-Key Fixes:
-- Safe UDP-only filtering: Never blocks TCP login/auth/Battle.net/EA app servers (prevents "Time out communicating with Battle.net services" error).
-- Executable auto-scoping: Automatically binds firewall rules to game .exe files.
+Key Features:
+- Dynamic Game-Specific Server Lists: GUI automatically refreshes and displays exact regional datacenters, descriptions, and ping targets when switching games.
+- Safe UDP-Only Filtering: Never blocks TCP login/auth/Battle.net/EA app servers (prevents "Time out communicating with Battle.net services" error).
+- Executable Auto-Scoping: Automatically discovers and binds firewall rules to all game .exe files (Battle.net AND Steam).
 """
 import sys
 import os
@@ -20,7 +21,7 @@ import customtkinter as ctk
 import pythonping
 
 from firewall_engine import FirewallManager, is_admin
-from game_profiles import GAME_PROFILES, get_all_game_executables
+from game_profiles import GAME_PROFILES, get_all_game_executables, get_game_regions
 import sync_ip_ranges
 
 def get_resource_path(relative_path: str) -> str:
@@ -31,82 +32,12 @@ def get_resource_path(relative_path: str) -> str:
         base_path = os.path.dirname(os.path.abspath(__file__))
     return os.path.join(base_path, relative_path)
 
-# Region Definitions & Live Ping Targets (Shared across modern cloud datacenters GCP/AWS/EA/Blizzard)
-REGIONS = {
-    "NA Central (ORD1 / Chicago)": {
-        "tag": "NA_central",
-        "ping_host": "24.105.62.129",
-        "file": "Ip_ranges_NA_central.txt",
-        "desc": "Chicago / Central US (GCP/Blizzard)"
-    },
-    "NA West (LAX1 / Oregon / Silicon Valley)": {
-        "tag": "NA_West",
-        "ping_host": "24.105.30.129",
-        "file": "Ip_ranges_NA_West.txt",
-        "desc": "Los Angeles / Washington / AWS us-west"
-    },
-    "NA East (GUE4 / Virginia)": {
-        "tag": "NA_East",
-        "ping_host": "34.224.0.1",
-        "file": "Ip_ranges_NA_East.txt",
-        "desc": "Virginia / Ashburn (AWS us-east-1)"
-    },
-    "Europe (Amsterdam / Frankfurt / Finland)": {
-        "tag": "EU",
-        "ping_host": "185.60.112.157",
-        "file": "Ip_ranges_EU.txt",
-        "desc": "Amsterdam / Frankfurt / Paris"
-    },
-    "Middle East (Bahrain / Dubai / KSA)": {
-        "tag": "ME",
-        "ping_host": "dynamodb.me-south-1.amazonaws.com",
-        "file": "Ip_ranges_ME.txt",
-        "desc": "Bahrain / Qatar / Saudi Arabia"
-    },
-    "Asia - Tokyo (GTK1)": {
-        "tag": "AS_Japan",
-        "ping_host": "dynamodb.ap-northeast-1.amazonaws.com",
-        "file": "Ip_ranges_AS_Japan.txt",
-        "desc": "Tokyo, Japan"
-    },
-    "Asia - Seoul (ICN1 / GAN3)": {
-        "tag": "AS_Korea",
-        "ping_host": "211.234.110.1",
-        "file": "Ip_ranges_AS_Korea.txt",
-        "desc": "Seoul, South Korea"
-    },
-    "Asia - Singapore (GSG1)": {
-        "tag": "AS_Singapore",
-        "ping_host": "dynamodb.ap-southeast-1.amazonaws.com",
-        "file": "Ip_ranges_AS_Singapore.txt",
-        "desc": "Singapore (AWS / GCP SE-Asia)"
-    },
-    "Asia - Taiwan (TPE1)": {
-        "tag": "AS_Taiwan",
-        "ping_host": "203.66.81.98",
-        "file": "Ip_ranges_AS_Taiwan.txt",
-        "desc": "Taipei, Taiwan"
-    },
-    "Australia (SYD2 / Sydney)": {
-        "tag": "Australia",
-        "ping_host": "dynamodb.ap-southeast-2.amazonaws.com",
-        "file": "Ip_ranges_Australia.txt",
-        "desc": "Sydney, Australia"
-    },
-    "South America (GBR1 / São Paulo)": {
-        "tag": "Brazil",
-        "ping_host": "54.207.107.12",
-        "file": "Ip_ranges_Brazil.txt",
-        "desc": "São Paulo, Brazil"
-    }
-}
-
 class UniversalServerSelectorApp(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("Universal PvP Server Selector (OW2, Battlefield, Apex)")
-        self.geometry("860x700")
+        self.title("WARPGATE - Universal PvP Server Selector")
+        self.geometry("880x720")
         self.minsize(820, 640)
         
         ctk.set_appearance_mode("Dark")
@@ -114,7 +45,7 @@ class UniversalServerSelectorApp(ctk.CTk):
 
         self.selected_game = ctk.StringVar(value="Overwatch 2")
         self.detected_exe = ctk.StringVar(value="")
-        self.selected_region = ctk.StringVar(value="UNBLOCKED")
+        self.selected_region = ctk.StringVar(value="")
         self.ipv6_enabled = ctk.BooleanVar(value=True)
         self.udp_only_mode = ctk.BooleanVar(value=True)
         self.ping_labels: Dict[str, ctk.CTkLabel] = {}
@@ -123,7 +54,6 @@ class UniversalServerSelectorApp(ctk.CTk):
         self._create_layout()
         self._check_admin_privileges()
         self._on_game_change(self.selected_game.get())
-        self.refresh_pings_async()
 
     def _create_layout(self):
         # Header banner
@@ -132,7 +62,7 @@ class UniversalServerSelectorApp(ctk.CTk):
 
         title_lbl = ctk.CTkLabel(
             header_frame, 
-            text="⚡ UNIVERSAL PVP SERVER SELECTOR", 
+            text="⚡ WARPGATE PVP SERVER SELECTOR", 
             font=ctk.CTkFont(size=19, weight="bold"),
             text_color="#f99f1b"
         )
@@ -158,7 +88,7 @@ class UniversalServerSelectorApp(ctk.CTk):
             values=list(GAME_PROFILES.keys()),
             variable=self.selected_game,
             command=self._on_game_change,
-            width=200
+            width=220
         )
         self.game_dropdown.pack(side="left", padx=5, pady=8)
 
@@ -175,33 +105,12 @@ class UniversalServerSelectorApp(ctk.CTk):
         content_frame.pack(fill="both", expand=True, padx=15, pady=0)
 
         # Region Selector (Left Panel)
-        regions_frame = ctk.CTkScrollableFrame(
+        self.regions_scroll = ctk.CTkScrollableFrame(
             content_frame, 
             label_text="Available Server Regions", 
             label_font=ctk.CTkFont(size=14, weight="bold")
         )
-        regions_frame.pack(side="left", fill="both", expand=True, padx=(0, 10))
-
-        for reg_name, meta in REGIONS.items():
-            card = ctk.CTkFrame(regions_frame, corner_radius=6, fg_color="#282c34")
-            card.pack(fill="x", pady=4, padx=5)
-
-            radio = ctk.CTkRadioButton(
-                card,
-                text=reg_name,
-                variable=self.selected_region,
-                value=reg_name,
-                font=ctk.CTkFont(size=13, weight="bold"),
-                command=self._on_region_select
-            )
-            radio.pack(side="left", padx=10, pady=8)
-
-            desc_lbl = ctk.CTkLabel(card, text=meta["desc"], font=ctk.CTkFont(size=11), text_color="#abb2bf")
-            desc_lbl.pack(side="left", padx=5)
-
-            p_lbl = ctk.CTkLabel(card, text="-- ms", font=ctk.CTkFont(size=12, weight="bold"), text_color="#5c6370")
-            p_lbl.pack(side="right", padx=10)
-            self.ping_labels[reg_name] = p_lbl
+        self.regions_scroll.pack(side="left", fill="both", expand=True, padx=(0, 10))
 
         # Action & Settings Panel (Right Panel)
         actions_frame = ctk.CTkFrame(content_frame, width=280, corner_radius=8, fg_color="#21252b")
@@ -296,15 +205,59 @@ class UniversalServerSelectorApp(ctk.CTk):
         self.status_bar.pack(fill="x", padx=20, pady=(6, 10))
 
     def _on_game_change(self, game_name: str):
+        """Called whenever the user selects a different game from the dropdown."""
         exes = get_all_game_executables(game_name)
         if exes:
             names = [os.path.basename(os.path.dirname(os.path.dirname(e))) or os.path.basename(e) for e in exes]
             self.detected_exe.set(f"✓ Bound to {len(exes)} executable(s): {', '.join(names)}")
         else:
             if game_name == "All Games (Global Mode)":
-                self.detected_exe.set("● Applies to all outbound traffic")
+                self.detected_exe.set("● Applies system-wide to outbound matchmaking traffic")
             else:
                 self.detected_exe.set("▲ Not found in standard paths (system-wide rule will apply)")
+
+        # Rebuild the region list dynamically for this specific game
+        self._rebuild_region_list(game_name)
+        self.refresh_pings_async()
+
+    def _rebuild_region_list(self, game_name: str):
+        """Clears and dynamically populates the region cards for the chosen game."""
+        # Destroy all existing widgets inside the scrollable region frame
+        for child in self.regions_scroll.winfo_children():
+            child.destroy()
+
+        self.ping_labels.clear()
+        regions = get_game_regions(game_name)
+        
+        # Update scrollable frame label
+        self.regions_scroll.configure(label_text=f"Available Server Regions — {game_name}")
+
+        # Auto-select the first region by default
+        first_region = next(iter(regions.keys())) if regions else ""
+        self.selected_region.set(first_region)
+
+        for reg_name, meta in regions.items():
+            card = ctk.CTkFrame(self.regions_scroll, corner_radius=6, fg_color="#282c34")
+            card.pack(fill="x", pady=4, padx=5)
+
+            radio = ctk.CTkRadioButton(
+                card,
+                text=reg_name,
+                variable=self.selected_region,
+                value=reg_name,
+                font=ctk.CTkFont(size=13, weight="bold"),
+                command=self._on_region_select
+            )
+            radio.pack(side="left", padx=10, pady=8)
+
+            desc_lbl = ctk.CTkLabel(card, text=meta["desc"], font=ctk.CTkFont(size=11), text_color="#abb2bf")
+            desc_lbl.pack(side="left", padx=5)
+
+            p_lbl = ctk.CTkLabel(card, text="-- ms", font=ctk.CTkFont(size=12, weight="bold"), text_color="#5c6370")
+            p_lbl.pack(side="right", padx=10)
+            self.ping_labels[reg_name] = p_lbl
+
+        self.status_var.set(f"Loaded {len(regions)} regions for {game_name}.")
 
     def _check_admin_privileges(self):
         if is_admin():
@@ -317,13 +270,18 @@ class UniversalServerSelectorApp(ctk.CTk):
         self.status_var.set(f"Selected: {reg}. Click 'Lock Selected Region' to enforce.")
 
     def refresh_pings_async(self):
-        self.status_var.set("Testing ping latencies to regions...")
+        game = self.selected_game.get()
+        regions = get_game_regions(game)
+        
+        self.status_var.set(f"Testing ping latencies to {game} datacenters...")
         for lbl in self.ping_labels.values():
             lbl.configure(text="...", text_color="#888888")
 
         def run_pings():
-            for name, meta in REGIONS.items():
-                host = meta["ping_host"]
+            for name, meta in regions.items():
+                host = meta.get("ping_host")
+                if not host:
+                    continue
                 try:
                     p = pythonping.ping(host, count=1, timeout=1.2)
                     ms = round(p.rtt_avg_ms, 1)
@@ -337,7 +295,7 @@ class UniversalServerSelectorApp(ctk.CTk):
                     color = "#6c707e"
                     text = "N/A"
                 self.after(0, self._update_ping_label, name, text, color)
-            self.after(0, lambda: self.status_var.set("Pings refreshed."))
+            self.after(0, lambda: self.status_var.set(f"Pings refreshed for {game}."))
 
         threading.Thread(target=run_pings, daemon=True).start()
 
@@ -361,14 +319,15 @@ class UniversalServerSelectorApp(ctk.CTk):
             self.status_var.set("Error: Must run as Administrator to configure Windows Firewall!")
             return
 
+        game = self.selected_game.get()
+        regions = get_game_regions(game)
         target = self.selected_region.get()
-        if target not in REGIONS:
+
+        if target not in regions:
             self.status_var.set("Select a valid region first.")
             return
 
-        game = self.selected_game.get()
         app_paths = get_all_game_executables(game)
-
         self.status_var.set(f"Applying rules for {game} to isolate {target}...")
 
         def run_lock():
@@ -376,10 +335,11 @@ class UniversalServerSelectorApp(ctk.CTk):
             base_dir = get_resource_path('ip_lists')
             ips_to_block = []
             
-            for name, meta in REGIONS.items():
+            for name, meta in regions.items():
                 if name == target:
                     continue
-                file_path = os.path.join(base_dir, meta["file"])
+                file_rel = meta.get("file", "")
+                file_path = os.path.join(base_dir, file_rel)
                 if os.path.exists(file_path):
                     with open(file_path, 'r', encoding='utf-8') as fp:
                         for l in fp:
@@ -387,10 +347,13 @@ class UniversalServerSelectorApp(ctk.CTk):
                             if clean and not clean.startswith('#'):
                                 ips_to_block.append(clean)
 
+            game_tag = GAME_PROFILES.get(game, {}).get('tag', 'GAME')
+            region_tag = regions[target].get('tag', 'REGION')
+            
             # Enforce UDP-only to preserve TCP authentication/login
             ok = FirewallManager.block_ip_ranges(
                 ips_to_block,
-                rule_name=f"{GAME_PROFILES.get(game, {}).get('tag', 'GAME')}_{REGIONS[target]['tag']}",
+                rule_name=f"{game_tag}_{region_tag}",
                 app_paths=app_paths,
                 block_ipv6=self.ipv6_enabled.get(),
                 udp_only=self.udp_only_mode.get()
@@ -407,13 +370,25 @@ class UniversalServerSelectorApp(ctk.CTk):
             return
 
         game = self.selected_game.get()
+        regions = get_game_regions(game)
         app_paths = get_all_game_executables(game)
+
+        # Find the Middle East entry in this game's regions
+        me_entry = None
+        for rname, rmeta in regions.items():
+            if "Middle East" in rname or "me-" in rname.lower() or "dammam" in rname.lower():
+                me_entry = rmeta
+                break
+
+        if not me_entry:
+            self.status_var.set(f"No specific Middle East region defined for {game}.")
+            return
 
         self.status_var.set(f"Blocking Middle East servers for {game}...")
         def run_block():
             FirewallManager.delete_all_selector_rules()
             base_dir = get_resource_path('ip_lists')
-            file_path = os.path.join(base_dir, REGIONS["Middle East (Bahrain / Dubai / KSA)"]["file"])
+            file_path = os.path.join(base_dir, me_entry["file"])
             
             ips = []
             if os.path.exists(file_path):
@@ -423,9 +398,10 @@ class UniversalServerSelectorApp(ctk.CTk):
                         if clean and not clean.startswith('#'):
                             ips.append(clean)
 
+            game_tag = GAME_PROFILES.get(game, {}).get('tag', 'GAME')
             ok = FirewallManager.block_ip_ranges(
                 ips,
-                rule_name="BLOCK_ME_ONLY",
+                rule_name=f"{game_tag}_BLOCK_ME_ONLY",
                 app_paths=app_paths,
                 block_ipv6=self.ipv6_enabled.get(),
                 udp_only=self.udp_only_mode.get()
