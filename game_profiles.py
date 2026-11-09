@@ -175,11 +175,17 @@ GAME_CONFIGS = {
         "tag": "APEX",
         "search_paths": [
             r"C:\Program Files (x86)\Steam\steamapps\common\Apex Legends\r5apex.exe",
+            r"C:\Program Files (x86)\Steam\steamapps\common\Apex Legends\r5apex_dx12.exe",
             r"D:\SteamLibrary\steamapps\common\Apex Legends\r5apex.exe",
+            r"D:\SteamLibrary\steamapps\common\Apex Legends\r5apex_dx12.exe",
             r"E:\SteamLibrary\steamapps\common\Apex Legends\r5apex.exe",
+            r"E:\SteamLibrary\steamapps\common\Apex Legends\r5apex_dx12.exe",
             r"C:\Program Files\EA Games\Apex\r5apex.exe",
+            r"C:\Program Files\EA Games\Apex\r5apex_dx12.exe",
             r"D:\EA Games\Apex\r5apex.exe",
+            r"D:\EA Games\Apex\r5apex_dx12.exe",
             r"E:\EA Games\Apex\r5apex.exe",
+            r"E:\EA Games\Apex\r5apex_dx12.exe",
         ],
         "regions": {
             "NA East (us-east-1 / Virginia)": {
@@ -235,9 +241,12 @@ GAME_CONFIGS = {
     "Marvel Rivals": {
         "tag": "RIVALS",
         "search_paths": [
-            r"C:\Program Files (x86)\Steam\steamapps\common\MarvelRivals\Marvel-Win64-Shipping.exe",
-            r"D:\SteamLibrary\steamapps\common\MarvelRivals\Marvel-Win64-Shipping.exe",
-            r"E:\SteamLibrary\steamapps\common\MarvelRivals\Marvel-Win64-Shipping.exe",
+            r"C:\Program Files (x86)\Steam\steamapps\common\MarvelRivals\MarvelGame\Marvel\Binaries\Win64\Marvel-Win64-Shipping.exe",
+            r"C:\Program Files (x86)\Steam\steamapps\common\MarvelRivals\MarvelGame\Marvel.exe",
+            r"D:\SteamLibrary\steamapps\common\MarvelRivals\MarvelGame\Marvel\Binaries\Win64\Marvel-Win64-Shipping.exe",
+            r"D:\SteamLibrary\steamapps\common\MarvelRivals\MarvelGame\Marvel.exe",
+            r"E:\SteamLibrary\steamapps\common\MarvelRivals\MarvelGame\Marvel\Binaries\Win64\Marvel-Win64-Shipping.exe",
+            r"E:\SteamLibrary\steamapps\common\MarvelRivals\MarvelGame\Marvel.exe",
         ],
         "regions": {
             "NA Central (Dallas / Ohio)": {
