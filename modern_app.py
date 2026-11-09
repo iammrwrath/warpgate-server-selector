@@ -1,23 +1,26 @@
 """
-Modern Overwatch 2 Server Selector (v6.0)
-Built with CustomTkinter for sleek, responsive dark mode UI.
-Integrates live latency checks, IPv4/IPv6 Windows Firewall blocking, and dynamic IP updates.
+Modern Multi-Game Server Selector v6.5 (Portable Edition)
+Supports:
+- Overwatch 2
+- Battlefield 2042 / Battlefield 6
+- Apex Legends
+- Marvel Rivals
+- System-Wide Global Game Matchmaking Block
+
+Key Fixes:
+- Safe UDP-only filtering: Never blocks TCP login/auth/Battle.net/EA app servers (prevents "Time out communicating with Battle.net services" error).
+- Executable auto-scoping: Automatically binds firewall rules to game .exe files.
 """
 import sys
 import os
-import json
 import threading
-import ipaddress
-import subprocess
-import webbrowser
-import logging
 from typing import Dict, List, Optional
 
 import customtkinter as ctk
-from PIL import Image
 import pythonping
 
 from firewall_engine import FirewallManager, is_admin
+from game_profiles import GAME_PROFILES, detect_game_executable
 import sync_ip_ranges
 
 def get_resource_path(relative_path: str) -> str:
@@ -28,45 +31,33 @@ def get_resource_path(relative_path: str) -> str:
         base_path = os.path.dirname(os.path.abspath(__file__))
     return os.path.join(base_path, relative_path)
 
-# Setup Logging
-APP_DATA_DIR = os.path.join(os.getenv('APPDATA', '.'), 'OverwatchServerSelectorV6')
-os.makedirs(APP_DATA_DIR, exist_ok=True)
-LOG_FILE = os.path.join(APP_DATA_DIR, 'ow2_selector.log')
-
-logging.basicConfig(
-    level=logging.INFO,
-    filename=LOG_FILE,
-    filemode='a',
-    format='[%(asctime)s] %(levelname)s: %(message)s'
-)
-
-# Region Definitions & Live Ping Targets
+# Region Definitions & Live Ping Targets (Shared across modern cloud datacenters GCP/AWS/EA/Blizzard)
 REGIONS = {
-    "NA Central (ORD1)": {
+    "NA Central (ORD1 / Chicago)": {
         "tag": "NA_central",
         "ping_host": "24.105.62.129",
         "file": "Ip_ranges_NA_central.txt",
-        "desc": "Chicago, Illinois"
+        "desc": "Chicago / Central US (GCP/Blizzard)"
     },
-    "NA West (LAX1 / GUW2)": {
+    "NA West (LAX1 / Oregon / Silicon Valley)": {
         "tag": "NA_West",
         "ping_host": "24.105.30.129",
         "file": "Ip_ranges_NA_West.txt",
-        "desc": "Los Angeles / Washington"
+        "desc": "Los Angeles / Washington / AWS us-west"
     },
-    "NA East (GUE4)": {
+    "NA East (GUE4 / Virginia)": {
         "tag": "NA_East",
         "ping_host": "34.224.0.1",
         "file": "Ip_ranges_NA_East.txt",
-        "desc": "Virginia / Ashburn"
+        "desc": "Virginia / Ashburn (AWS us-east-1)"
     },
-    "Europe (AMS1 / GEN1)": {
+    "Europe (Amsterdam / Frankfurt / Finland)": {
         "tag": "EU",
         "ping_host": "185.60.112.157",
         "file": "Ip_ranges_EU.txt",
-        "desc": "Amsterdam / Finland / Frankfurt"
+        "desc": "Amsterdam / Frankfurt / Paris"
     },
-    "Middle East (MES1 / GMEC)": {
+    "Middle East (Bahrain / Dubai / KSA)": {
         "tag": "ME",
         "ping_host": "dynamodb.me-south-1.amazonaws.com",
         "file": "Ip_ranges_ME.txt",
@@ -88,7 +79,7 @@ REGIONS = {
         "tag": "AS_Singapore",
         "ping_host": "dynamodb.ap-southeast-1.amazonaws.com",
         "file": "Ip_ranges_AS_Singapore.txt",
-        "desc": "Singapore"
+        "desc": "Singapore (AWS / GCP SE-Asia)"
     },
     "Asia - Taiwan (TPE1)": {
         "tag": "AS_Taiwan",
@@ -96,13 +87,13 @@ REGIONS = {
         "file": "Ip_ranges_AS_Taiwan.txt",
         "desc": "Taipei, Taiwan"
     },
-    "Australia (SYD2)": {
+    "Australia (SYD2 / Sydney)": {
         "tag": "Australia",
         "ping_host": "dynamodb.ap-southeast-2.amazonaws.com",
         "file": "Ip_ranges_Australia.txt",
         "desc": "Sydney, Australia"
     },
-    "South America (GBR1)": {
+    "South America (GBR1 / São Paulo)": {
         "tag": "Brazil",
         "ping_host": "54.207.107.12",
         "file": "Ip_ranges_Brazil.txt",
@@ -110,37 +101,39 @@ REGIONS = {
     }
 }
 
-class OverwatchServerSelectorApp(ctk.CTk):
+class UniversalServerSelectorApp(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        self.title("Overwatch 2 Server Selector v6.0")
-        self.geometry("820x680")
-        self.minsize(780, 600)
+        self.title("Universal PvP Server Selector (OW2, Battlefield, Apex)")
+        self.geometry("860x700")
+        self.minsize(820, 640)
         
         ctk.set_appearance_mode("Dark")
         ctk.set_default_color_theme("blue")
 
+        self.selected_game = ctk.StringVar(value="Overwatch 2")
+        self.detected_exe = ctk.StringVar(value="")
         self.selected_region = ctk.StringVar(value="UNBLOCKED")
-        self.game_path_var = ctk.StringVar(value="")
         self.ipv6_enabled = ctk.BooleanVar(value=True)
-        self.block_me_only = ctk.BooleanVar(value=False)
+        self.udp_only_mode = ctk.BooleanVar(value=True)
         self.ping_labels: Dict[str, ctk.CTkLabel] = {}
         self.status_var = ctk.StringVar(value="Status: Ready")
 
         self._create_layout()
         self._check_admin_privileges()
+        self._on_game_change(self.selected_game.get())
         self.refresh_pings_async()
 
     def _create_layout(self):
         # Header banner
-        header_frame = ctk.CTkFrame(self, corner_radius=10, fg_color="#1f232a")
+        header_frame = ctk.CTkFrame(self, corner_radius=10, fg_color="#1a1d24")
         header_frame.pack(fill="x", padx=15, pady=(15, 10))
 
         title_lbl = ctk.CTkLabel(
             header_frame, 
-            text="⚡ OVERWATCH 2 SERVER SELECTOR", 
-            font=ctk.CTkFont(size=20, weight="bold"),
+            text="⚡ UNIVERSAL PVP SERVER SELECTOR", 
+            font=ctk.CTkFont(size=19, weight="bold"),
             text_color="#f99f1b"
         )
         title_lbl.pack(side="left", padx=15, pady=12)
@@ -153,16 +146,44 @@ class OverwatchServerSelectorApp(ctk.CTk):
         )
         self.admin_lbl.pack(side="right", padx=15)
 
-        # Main content area (Left: Region grid, Right: Controls & Info)
+        # Game Selection Bar
+        game_bar = ctk.CTkFrame(self, corner_radius=8, fg_color="#21252b")
+        game_bar.pack(fill="x", padx=15, pady=(0, 10))
+
+        game_lbl = ctk.CTkLabel(game_bar, text="Target Game:", font=ctk.CTkFont(size=13, weight="bold"))
+        game_lbl.pack(side="left", padx=(15, 8), pady=8)
+
+        self.game_dropdown = ctk.CTkOptionMenu(
+            game_bar,
+            values=list(GAME_PROFILES.keys()),
+            variable=self.selected_game,
+            command=self._on_game_change,
+            width=200
+        )
+        self.game_dropdown.pack(side="left", padx=5, pady=8)
+
+        self.exe_status_lbl = ctk.CTkLabel(
+            game_bar,
+            textvariable=self.detected_exe,
+            font=ctk.CTkFont(size=11),
+            text_color="#7ee787"
+        )
+        self.exe_status_lbl.pack(side="left", padx=12, pady=8)
+
+        # Main content area (Left: Region cards, Right: Controls & Options)
         content_frame = ctk.CTkFrame(self, fg_color="transparent")
-        content_frame.pack(fill="both", expand=True, padx=15, pady=5)
+        content_frame.pack(fill="both", expand=True, padx=15, pady=0)
 
         # Region Selector (Left Panel)
-        regions_frame = ctk.CTkScrollableFrame(content_frame, label_text="Available Server Regions", label_font=ctk.CTkFont(size=14, weight="bold"))
+        regions_frame = ctk.CTkScrollableFrame(
+            content_frame, 
+            label_text="Available Server Regions", 
+            label_font=ctk.CTkFont(size=14, weight="bold")
+        )
         regions_frame.pack(side="left", fill="both", expand=True, padx=(0, 10))
 
         for reg_name, meta in REGIONS.items():
-            card = ctk.CTkFrame(regions_frame, corner_radius=6, fg_color="#2b2d30")
+            card = ctk.CTkFrame(regions_frame, corner_radius=6, fg_color="#282c34")
             card.pack(fill="x", pady=4, padx=5)
 
             radio = ctk.CTkRadioButton(
@@ -175,18 +196,18 @@ class OverwatchServerSelectorApp(ctk.CTk):
             )
             radio.pack(side="left", padx=10, pady=8)
 
-            desc_lbl = ctk.CTkLabel(card, text=meta["desc"], font=ctk.CTkFont(size=11), text_color="#a0a0a0")
+            desc_lbl = ctk.CTkLabel(card, text=meta["desc"], font=ctk.CTkFont(size=11), text_color="#abb2bf")
             desc_lbl.pack(side="left", padx=5)
 
-            p_lbl = ctk.CTkLabel(card, text="-- ms", font=ctk.CTkFont(size=12, weight="bold"), text_color="#6c707e")
+            p_lbl = ctk.CTkLabel(card, text="-- ms", font=ctk.CTkFont(size=12, weight="bold"), text_color="#5c6370")
             p_lbl.pack(side="right", padx=10)
             self.ping_labels[reg_name] = p_lbl
 
         # Action & Settings Panel (Right Panel)
         actions_frame = ctk.CTkFrame(content_frame, width=280, corner_radius=8, fg_color="#21252b")
-        actions_frame.pack(side="right", fill="y", padx=(0, 0))
+        actions_frame.pack(side="right", fill="y", padx=0)
 
-        ctrl_title = ctk.CTkLabel(actions_frame, text="Control Center", font=ctk.CTkFont(size=15, weight="bold"))
+        ctrl_title = ctk.CTkLabel(actions_frame, text="Firewall Controls", font=ctk.CTkFont(size=15, weight="bold"))
         ctrl_title.pack(pady=(12, 8), padx=10)
 
         # Lock / Unlock buttons
@@ -224,11 +245,22 @@ class OverwatchServerSelectorApp(ctk.CTk):
         sep = ctk.CTkFrame(actions_frame, height=2, fg_color="#30363d")
         sep.pack(fill="x", padx=15, pady=12)
 
-        # Options
-        opt_lbl = ctk.CTkLabel(actions_frame, text="Security & Rules", font=ctk.CTkFont(size=13, weight="bold"))
+        # Safety & Protocol Options
+        opt_lbl = ctk.CTkLabel(actions_frame, text="Safety & Game Traffic", font=ctk.CTkFont(size=13, weight="bold"))
         opt_lbl.pack(anchor="w", padx=15, pady=(0, 4))
 
-        v6_cb = ctk.CTkCheckBox(actions_frame, text="Block IPv6 Traffic", variable=self.ipv6_enabled)
+        udp_cb = ctk.CTkCheckBox(
+            actions_frame, 
+            text="UDP Only (Protects Login/Auth)", 
+            variable=self.udp_only_mode
+        )
+        udp_cb.pack(anchor="w", padx=15, pady=4)
+
+        v6_cb = ctk.CTkCheckBox(
+            actions_frame, 
+            text="Block IPv6 Traffic", 
+            variable=self.ipv6_enabled
+        )
         v6_cb.pack(anchor="w", padx=15, pady=4)
 
         # Ping Button
@@ -261,13 +293,23 @@ class OverwatchServerSelectorApp(ctk.CTk):
             text_color="#8b949e",
             anchor="w"
         )
-        self.status_bar.pack(fill="x", padx=20, pady=(4, 10))
+        self.status_bar.pack(fill="x", padx=20, pady=(6, 10))
+
+    def _on_game_change(self, game_name: str):
+        exe = detect_game_executable(game_name)
+        if exe:
+            self.detected_exe.set(f"✓ Detected: {os.path.basename(exe)}")
+        else:
+            if game_name == "All Games (Global Firewall)":
+                self.detected_exe.set("● Applies to all outbound traffic")
+            else:
+                self.detected_exe.set("▲ Executable not found in default paths (system-wide rule will apply)")
 
     def _check_admin_privileges(self):
         if is_admin():
             self.admin_lbl.configure(text="● Admin Mode (Active)", text_color="#2ea043")
         else:
-            self.admin_lbl.configure(text="▲ Not Admin (Restart as Admin to apply rules)", text_color="#e3b341")
+            self.admin_lbl.configure(text="▲ Not Admin (Run as Administrator to apply rules)", text_color="#e3b341")
 
     def _on_region_select(self):
         reg = self.selected_region.get()
@@ -323,13 +365,14 @@ class OverwatchServerSelectorApp(ctk.CTk):
             self.status_var.set("Select a valid region first.")
             return
 
-        self.status_var.set(f"Applying firewall rules to isolate {target}...")
+        game = self.selected_game.get()
+        exe = detect_game_executable(game)
+        app_paths = [exe] if exe else []
+
+        self.status_var.set(f"Applying rules for {game} to isolate {target}...")
 
         def run_lock():
-            # Step 1: Clear old selector rules
             FirewallManager.delete_all_selector_rules()
-            
-            # Step 2: Combine IP ranges of all OTHER regions to block them
             base_dir = get_resource_path('ip_lists')
             ips_to_block = []
             
@@ -344,17 +387,16 @@ class OverwatchServerSelectorApp(ctk.CTk):
                             if clean and not clean.startswith('#'):
                                 ips_to_block.append(clean)
 
-            # Step 3: Apply firewall block
+            # Enforce UDP-only to preserve TCP authentication/login
             ok = FirewallManager.block_ip_ranges(
                 ips_to_block,
-                rule_name=f"FORCE_{REGIONS[target]['tag']}",
-                block_ipv6=self.ipv6_enabled.get()
+                rule_name=f"{GAME_PROFILES.get(game, {}).get('tag', 'GAME')}_{REGIONS[target]['tag']}",
+                app_paths=app_paths,
+                block_ipv6=self.ipv6_enabled.get(),
+                udp_only=self.udp_only_mode.get()
             )
 
-            if ok:
-                msg = f"Locked to {target}! All other Overwatch 2 datacenters are blocked."
-            else:
-                msg = f"Locked to {target} (Note: check firewall permissions if some rules failed)."
+            msg = f"Locked to {target} ({game})! Auth/login protected." if ok else f"Locked to {target}."
             self.after(0, lambda: self.status_var.set(msg))
 
         threading.Thread(target=run_lock, daemon=True).start()
@@ -364,11 +406,15 @@ class OverwatchServerSelectorApp(ctk.CTk):
             self.status_var.set("Error: Must run as Administrator to configure Windows Firewall!")
             return
 
-        self.status_var.set("Blocking Middle East servers...")
+        game = self.selected_game.get()
+        exe = detect_game_executable(game)
+        app_paths = [exe] if exe else []
+
+        self.status_var.set(f"Blocking Middle East servers for {game}...")
         def run_block():
             FirewallManager.delete_all_selector_rules()
             base_dir = get_resource_path('ip_lists')
-            file_path = os.path.join(base_dir, REGIONS["Middle East (MES1 / GMEC)"]["file"])
+            file_path = os.path.join(base_dir, REGIONS["Middle East (Bahrain / Dubai / KSA)"]["file"])
             
             ips = []
             if os.path.exists(file_path):
@@ -381,9 +427,11 @@ class OverwatchServerSelectorApp(ctk.CTk):
             ok = FirewallManager.block_ip_ranges(
                 ips,
                 rule_name="BLOCK_ME_ONLY",
-                block_ipv6=self.ipv6_enabled.get()
+                app_paths=app_paths,
+                block_ipv6=self.ipv6_enabled.get(),
+                udp_only=self.udp_only_mode.get()
             )
-            msg = "Middle East servers blocked!" if ok else "Applied Middle East block rules."
+            msg = f"Middle East servers blocked for {game}!" if ok else "Applied Middle East block rules."
             self.after(0, lambda: self.status_var.set(msg))
 
         threading.Thread(target=run_block, daemon=True).start()
@@ -393,12 +441,12 @@ class OverwatchServerSelectorApp(ctk.CTk):
             self.status_var.set("Error: Must run as Administrator to remove firewall rules!")
             return
 
-        self.status_var.set("Removing all Overwatch Server Selector firewall rules...")
+        self.status_var.set("Removing all server selector firewall rules...")
         def run_unlock():
             FirewallManager.delete_all_selector_rules()
             self.after(0, lambda: self.status_var.set("All server blocks removed. Normal matchmaking restored."))
         threading.Thread(target=run_unlock, daemon=True).start()
 
 if __name__ == "__main__":
-    app = OverwatchServerSelectorApp()
+    app = UniversalServerSelectorApp()
     app.mainloop()

@@ -43,7 +43,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='Overwatch-Server-Selector',
+    name='PvP-Server-Selector',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
